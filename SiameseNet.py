@@ -29,7 +29,7 @@ class SiameseNet:
 
         self.init_filters = 64
 
-        self.batch_size = 2
+        self.batch_size = 4
         self.epochs = 5000
 
         self.siamese_model = self._build_siamese()
@@ -40,19 +40,19 @@ class SiameseNet:
 
         x = Conv3D(self.init_filters, 3, strides=2, padding="same", activation="relu")(input_tensor)
         x = BatchNormalization()(x)
-        x = Dropout(0.3)(x)
+        x = Dropout(0.2)(x)
 
         x = Conv3D(self.init_filters * 2, 3, strides=2, padding="same", activation="relu")(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.3)(x)
+        x = Dropout(0.2)(x)
 
         x = Conv3D(self.init_filters * 4, 3, strides=2, padding="same", activation="relu")(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.3)(x)
+        x = Dropout(0.2)(x)
 
         x = Conv3D(self.init_filters * 8, 3, strides=2, padding="same", activation="relu")(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.3)(x)
+        x = Dropout(0.2)(x)
 
         x = Flatten()(x)
         outputs = Dense(self.embedding_size)(x)
@@ -84,19 +84,23 @@ class SiameseNet:
         return model
 
     def build_and_train(self):
-        optimizer = Adam(lr=0.001, beta_1=0.5)
+        optimizer = Adam(lr=0.0005, beta_1=0.5)
         self.siamese_model.compile(optimizer, loss='binary_crossentropy')
         start = time.time()
-        fig = plt.figure()
         losses = []
+        last_time = 0
         for epoch in range(self.epochs):
             X, y = self.data_loader.load_batch(self.batch_size)
             loss = self.siamese_model.train_on_batch([X[:, 0, :, :, :, :], X[:, 1, :, :, :, :]], y)
-            print(f'Epoch: {epoch}/{self.epochs}\tLoss: {loss}\tElapsed: {round(time.time() - start)}s.')
+            now = time.time()
+            print(f'[Epoch: {epoch}/{self.epochs}]\tLoss: {round(loss, 4)}\t[Elapsed: {round(now - start)}s.\tCurr: {round(now - last_time, 2)}\tLeft: {round((now - last_time) * (self.epochs - epoch), 2)}]')
+            last_time = now
             losses.append(loss)
             plt.cla()
             plt.plot(losses)
             plt.pause(0.1)
+            if epoch % 100 == 0:
+                self.siamese_model.save(f'./saved/siamese_model_{epoch}.h5')
         self.siamese_model.save('siamese_model.h5')
 
 
